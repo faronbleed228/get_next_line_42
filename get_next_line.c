@@ -74,7 +74,7 @@ int	ft_double_buffer(char **buffer)
 		return (0);
 	ft_strlcpy(temp, *buffer, buffer_len + 1);
 	free(*buffer);
-	*buffer = calloc(buffer_len + BUFFER_SIZE + 1, 1);
+	*buffer = ft_calloc(buffer_len + BUFFER_SIZE + 1, 1);
 	if (!(*buffer))
 	{
 		free(temp);
@@ -111,5 +111,3 @@ char	*ft_return_line(char **buffer, char **remainder)
 	free(*buffer);
 	return (line);
 }
-
-
