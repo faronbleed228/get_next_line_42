@@ -18,7 +18,7 @@ The function uses a **static remainder pointer** to persist leftover data betwee
 
 1. **Initialization** — If a remainder exists from a previous call, it is copied into a fresh buffer as the starting point. Otherwise an empty buffer of size `BUFFER_SIZE + 1` is allocated.
 
-2. **Read loop** — `read()` fills the buffer from where it left off (`&buffer[ft_strlen(buffer)]`). After each read, the buffer is scanned for a newline character using `ft_strchr`.
+2. **Read loop** — `read()` fills the buffer from where it left off (`&buffer[ft_strlen(buffer)]`). Before each read, the accumulated buffer is scanned for a newline character using `ft_strchr`.
 
 3. **Newline found** — The portion up to and including `\n` is extracted and returned as the line. Everything after `\n` is saved into `remainder` for the next call via a fresh allocation. The buffer is then freed.
 
@@ -33,66 +33,37 @@ A static remainder avoids re-reading data already consumed from the file descrip
 
 ## Instructions
 
-### Compilation
+### Compile and run
 
-The project is compiled with a custom `BUFFER_SIZE` passed as a preprocessor flag:
-
-```bash
-cc -Wall -Wextra -Werror -D BUFFER_SIZE=42 get_next_line.c get_next_line_utils.c -o gnl
+```sh
+make demo
+printf 'first\nsecond\n' | ./gnl
+cc -Wall -Wextra -Werror -I. -DBUFFER_SIZE=42 examples/read_lines.c get_next_line.c get_next_line_utils.c -o gnl
 ```
 
-You can replace `42` with any positive integer to test different buffer sizes.
+The checked-in [demo](examples/read_lines.c) reads standard input.
+To embed the function, compile both source files with your application's main.
 
-### Usage example
+### Public regressions
 
-```c
-#include "get_next_line.h"
-#include <fcntl.h>
-#include <stdio.h>
-
-int main(void)
-{
-    int   fd;
-    char  *line;
-
-    fd = open("file.txt", O_RDONLY);
-    while ((line = get_next_line(fd)) != NULL)
-    {
-        printf("%s", line);
-        free(line);
-    }
-    close(fd);
-    return (0);
-}
-
-#include "get_next_line.h"
-#include <fcntl.h>
-#include <stdio.h>
-
-int	main(void)
-{
-	char	*line;
-
-	while (1)
-	{
-		line = get_next_line(0);
-		if (!line)
-			break ;
-		printf("%s", line);
-		free(line);
-	}
-	return (0);
-}
+```sh
+make test
 ```
 
-### Testing with valgrind
+On Linux/GCC this builds ASan/UBSan checks at BUFFER_SIZE 1/42/4096 using
+a linker malloc wrapper. Tests cover a long line, empty line, final line
+without a newline, repeated EOF, buffered lines in an open pipe, read errors,
+descriptor reuse and allocation failures. For a compiler without sanitizer
+support use `make test SANITIZERS=`.
 
-```bash
-cc -Wall -Wextra -Werror -D BUFFER_SIZE=1 get_next_line.c get_next_line_utils.c  -o gnl
-valgrind --leak-check=full ./gnl
-```
+Only one descriptor stream is supported at a time: this mandatory-version
+implementation shares a single static remainder. Drain to EOF before switching
+streams. It does not implement the multi-fd bonus. A read error clears the
+remainder. Callers own and must free every returned line.
 
-Test with multiple values of `BUFFER_SIZE` — especially `1`, `42`, and very large values.
+The 2026-10-21 Linux run passed ASan/UBSan with leak detection disabled because
+LeakSanitizer could not inspect process threads in that environment; a separate
+leak checker was not run.
 
 ---
 
@@ -111,3 +82,5 @@ Claude (claude.ai) was used during this project as a **guidance tool**. Specific
 - Interpreting valgrind output to locate memory leaks and invalid reads/writes
 
 Claude did not write any code directly. All implementation decisions and code were written by the student, with AI used to ask questions and verify understanding — similar to asking a peer for guidance.
+
+Maintenance fixes and public regression tests were prepared with OpenAI Codex on 2026-10-21.
