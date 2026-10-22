@@ -25,6 +25,7 @@ char	*ft_allocating(char **remainder, char **buffer)
 			return (NULL);
 		ft_strlcpy(*buffer, *remainder, ft_strlen(*remainder) + 1);
 		free(*remainder);
+		*remainder = NULL;
 	}
 	else
 	{
@@ -49,12 +50,11 @@ char	*get_next_line(int fd)
 		return (ft_free(&buffer, &remainder));
 	while (byte_read != 0)
 	{
+		if (ft_strchr(buffer, '\n'))
+			return (ft_return_line(&buffer, &remainder));
 		byte_read = read(fd, &buffer[ft_strlen(buffer)], BUFFER_SIZE);
 		if (byte_read == -1)
-			return (free(buffer), NULL);
-		remainder = ft_strchr(buffer, '\n');
-		if (remainder)
-			return (ft_return_line(&buffer, &remainder));
+			return (ft_free(&buffer, &remainder));
 		if (ft_double_buffer(&buffer) == 0)
 			return (ft_free(&buffer, &remainder));
 	}
@@ -88,25 +88,21 @@ int	ft_double_buffer(char **buffer)
 char	*ft_return_line(char **buffer, char **remainder)
 {
 	char	*line;
-	int		line_len;
-	char	*temp;
+	size_t	line_len;
+	char	*newline;
 
-	line_len = ft_strlen(*buffer) - ft_strlen(*remainder) + 1;
+	newline = ft_strchr(*buffer, '\n');
+	line_len = newline - *buffer + 1;
 	line = malloc(line_len + 1);
 	if (!line)
+		return (ft_free(buffer, remainder));
+	*remainder = malloc(ft_strlen(newline + 1) + 1);
+	if (!*remainder)
 	{
-		free(*buffer);
-		return (NULL);
-	}
-	temp = malloc(1 + ft_strlen(*remainder));
-	if (!temp)
-	{
-		free(*buffer);
 		free(line);
-		return (NULL);
+		return (ft_free(buffer, remainder));
 	}
-	ft_strlcpy(temp, ((*remainder) + 1), ft_strlen(*remainder));
-	*remainder = temp;
+	ft_strlcpy(*remainder, newline + 1, ft_strlen(newline + 1) + 1);
 	ft_strlcpy(line, *buffer, line_len + 1);
 	free(*buffer);
 	return (line);
